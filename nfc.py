@@ -72,7 +72,7 @@ def control(color_str, duration_ms):
 # Function to handle tapping the card
 def tap(card):
     url = "http://127.0.0.1:8000/tap"  # Your server URL
-    url = "http://192.168.100.41:8000/tap"  # Your server URL
+    #url = "http://192.168.100.41:8000/tap"  # Your server URL
 
     # Sending the card data to the server
     data = {"device": "Entrance", "card": str(card)}
