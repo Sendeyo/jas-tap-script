@@ -1,18 +1,30 @@
-import time
-import RPi.GPIO as GPIO
-from mfrc522 import SimpleMFRC522
-import requests
 import board
+import busio
+from digitalio import DigitalInOut
+from adafruit_pn532.i2c import PN532_I2C
+import time
 import neopixel
+import requests
 
-print("Script started")
-# Initialize the RFID reader
-reader = SimpleMFRC522()
+i2c = busio.I2C(board.SCL, board.SDA)
+pn532 = PN532_I2C(i2c, debug=False)
 
-# Setup for LED
 LED_PIN = board.D18  # GPIO pin you're using
 LED_COUNT = 24  # Set the number of LEDs
 pixels = neopixel.NeoPixel(LED_PIN, LED_COUNT, auto_write=False)
+
+
+# Get firmware version
+ic, ver, rev, support = pn532.firmware_version
+print(f'Found PN532 with firmware version: {ver}.{rev}')
+
+# Configure to read MiFare cards
+pn532.SAM_configuration()
+
+def offled():
+    pixels.fill((0, 0, 0))  # Turn off LEDs
+    pixels.show()
+    
 
 # Function to parse the color string (e.g., '000200000' -> (0, 2, 0))
 def parse_color(color_str):
@@ -21,7 +33,21 @@ def parse_color(color_str):
     green = int(color_str[3:6])
     blue = int(color_str[6:])
     return (red, green, blue)
+    
+    
+def spinner_animation(duration=1.0, wait=0.01):
+    """Show a spinner that runs around the LED ring."""
+    start_time = time.time()
+    while (time.time() - start_time) < duration:
+        for i in range(LED_COUNT):
+            pixels.fill((0, 0, 0))  # Turn off all
+            pixels[i] = (0, 255, 0)  # Bright green dot
+            pixels.show()
+            time.sleep(wait)
+    offled()
+    
 
+    
 # Function to control the LED based on server response
 def control(color_str, duration_ms):
     print("Controlling LED with color:", color_str)
@@ -42,10 +68,11 @@ def control(color_str, duration_ms):
     pixels.fill((0, 0, 0))  # Turn off LEDs
     pixels.show()
 
+
 # Function to handle tapping the card
 def tap(card):
     url = "http://127.0.0.1:8000/tap"  # Your server URL
-    #url = "http://192.168.100.40:8000/tap"  # Your server URL
+    url = "http://192.168.100.41:8000/tap"  # Your server URL
 
     # Sending the card data to the server
     data = {"device": "Entrance", "card": str(card)}
@@ -65,18 +92,15 @@ def tap(card):
     else:
         print("Error:", res.status_code, res.text)
 
-# Function to handle the reading of the RFID card
-def read(id):
-    print("Card ID:", id)
-    tap(id)
-    time.sleep(0.2)
 
-try:
-    while True:
-        # Read the RFID card
-        id, text = reader.read()
-        read(id)
 
-finally:
-    # Cleanup GPIO settings
-    GPIO.cleanup()
+# --- Run Boot Animation ---
+spinner_animation()
+
+print('Waiting for NFC card...')
+while True:
+    uid = pn532.read_passive_target(timeout=0.5)
+    if uid is not None:
+        id =uid.hex()
+        print(id)
+        tap(id)
