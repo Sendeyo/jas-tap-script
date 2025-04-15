@@ -5,6 +5,11 @@ import requests
 import board
 import neopixel
 
+#Device Access Shit
+import subprocess
+import socket
+import os
+
 print("Script started")
 # Initialize the RFID reader
 reader = SimpleMFRC522()
@@ -64,6 +69,9 @@ def tap(card):
         control(color_str, duration_ms)
     else:
         print("Error:", res.status_code, res.text)
+        
+#
+
 
 # Function to handle the reading of the RFID card
 def read(id):

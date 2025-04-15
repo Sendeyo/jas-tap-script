@@ -6,6 +6,11 @@ import time
 import neopixel
 import requests
 
+#Script part
+import subprocess
+import socket
+import os
+
 i2c = busio.I2C(board.SCL, board.SDA)
 pn532 = PN532_I2C(i2c, debug=False)
 
@@ -35,13 +40,13 @@ def parse_color(color_str):
     return (red, green, blue)
     
     
-def spinner_animation(duration=1.0, wait=0.01):
+def spinner_animation(duration=1.0, wait=0.01, color="000000255"):
     """Show a spinner that runs around the LED ring."""
     start_time = time.time()
     while (time.time() - start_time) < duration:
         for i in range(LED_COUNT):
             pixels.fill((0, 0, 0))  # Turn off all
-            pixels[i] = (0, 255, 0)  # Bright green dot
+            pixels[i] = parse_color(color)  # Bright green dot
             pixels.show()
             time.sleep(wait)
     offled()
@@ -93,9 +98,67 @@ def tap(card):
         print("Error:", res.status_code, res.text)
 
 
+def is_wifi_connected():
+    try:
+        # Try to get IP of wlan0 interface
+        ip = subprocess.check_output("ip -4 addr show wlan0 | grep inet", shell=True).decode()
+        return "inet" in ip
+    except subprocess.CalledProcessError:
+        return False
+
+def start_access_point():
+    hostname = socket.gethostname()
+    ssid = hostname
+    password = "pass1234"
+
+    print(f"Starting AP with SSID: {ssid}, Password: {password}")
+
+    # Set static IP
+    subprocess.run(["sudo", "ifconfig", "wlan0", "192.168.4.1"])
+
+    # Generate hostapd config
+    hostapd_conf = f"""
+interface=wlan0
+ssid={ssid}
+hw_mode=g
+channel=7
+auth_algs=1
+wmm_enabled=0
+wpa=2
+wpa_passphrase={password}
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+"""
+    with open("/tmp/hostapd.conf", "w") as f:
+        f.write(hostapd_conf)
+
+    # Point hostapd to our config
+    subprocess.run(["sudo", "sed", "-i", 's|#DAEMON_CONF=.*|DAEMON_CONF="/tmp/hostapd.conf"|', "/etc/default/hostapd"])
+
+    # Stop conflicting services
+    subprocess.run(["sudo", "systemctl", "stop", "wpa_supplicant"])
+    subprocess.run(["sudo", "systemctl", "stop", "dhcpcd"])
+
+    # Start access point
+    subprocess.run(["sudo", "systemctl", "start", "hostapd"])
+
+def start():
+    if is_wifi_connected():
+        print("Wi-Fi is connected. Nothing to do.")
+        time.sleep(0.5)
+        spinner_animation(color="000255000", duration=3.0)
+    else:
+        print("Wi-Fi NOT connected. Launching Access Point...")
+        start_access_point()
+        time.sleep(1.0)
+        spinner_animation(color="000000255", duration=2.0)
+        
+
+
 
 # --- Run Boot Animation ---
-spinner_animation()
+spinner_animation(color="255255255")
+start()
 
 print('Waiting for NFC card...')
 while True:
