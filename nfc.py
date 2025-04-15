@@ -107,40 +107,57 @@ def is_wifi_connected():
         return False
 
 def start_access_point():
-    hostname = socket.gethostname()
-    ssid = hostname
+    ssid = socket.gethostname() or "TapAP"
     password = "pass1234"
 
     print(f"Starting AP with SSID: {ssid}, Password: {password}")
 
-    # Set static IP
-    subprocess.run(["sudo", "ifconfig", "wlan0", "192.168.4.1"])
+    # Stop wlan0 client mode (but not the whole service!)
+    subprocess.run(["sudo", "ifconfig", "wlan0", "down"])
+    subprocess.run(["sudo", "ip", "addr", "flush", "dev", "wlan0"])
+    subprocess.run(["sudo", "ifconfig", "wlan0", "192.168.4.1", "netmask", "255.255.255.0", "up"])
 
-    # Generate hostapd config
+    # Write hostapd config to /etc/hostapd/hostapd.conf
     hostapd_conf = f"""
 interface=wlan0
 ssid={ssid}
 hw_mode=g
 channel=7
-auth_algs=1
 wmm_enabled=0
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
 wpa=2
 wpa_passphrase={password}
 wpa_key_mgmt=WPA-PSK
 rsn_pairwise=CCMP
-"""
-    with open("/tmp/hostapd.conf", "w") as f:
+    """
+    with open("/etc/hostapd/hostapd.conf", "w") as f:
         f.write(hostapd_conf)
 
-    # Point hostapd to our config
-    subprocess.run(["sudo", "sed", "-i", 's|#DAEMON_CONF=.*|DAEMON_CONF="/tmp/hostapd.conf"|', "/etc/default/hostapd"])
+    # Configure dnsmasq to hand out IPs
+    dnsmasq_conf = """
+interface=wlan0
+dhcp-range=192.168.4.10,192.168.4.100,12h
+    """
+    with open("/etc/dnsmasq.d/ap.conf", "w") as f:
+        f.write(dnsmasq_conf)
 
-    # Stop conflicting services
-    subprocess.run(["sudo", "systemctl", "stop", "wpa_supplicant"])
-    subprocess.run(["sudo", "systemctl", "stop", "dhcpcd"])
+    # Point to the correct hostapd config
+    subprocess.run([
+        "sudo", "sed", "-i",
+        's|^#*DAEMON_CONF=.*|DAEMON_CONF="/etc/hostapd/hostapd.conf"|',
+        "/etc/default/hostapd"
+    ])
 
-    # Start access point
-    subprocess.run(["sudo", "systemctl", "start", "hostapd"])
+    # Restart services
+    subprocess.run(["sudo", "systemctl", "restart", "dnsmasq"])
+    subprocess.run(["sudo", "systemctl", "unmask", "hostapd"])
+    subprocess.run(["sudo", "systemctl", "enable", "hostapd"])
+    subprocess.run(["sudo", "systemctl", "restart", "hostapd"])
+
+    print("Access Point should now be active on 192.168.4.1")
+
 
 def start():
     if is_wifi_connected():
