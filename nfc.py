@@ -7,9 +7,6 @@ import neopixel
 import requests
 
 #Script part
-import subprocess
-import socket
-import os
 
 i2c = busio.I2C(board.SCL, board.SDA)
 pn532 = PN532_I2C(i2c, debug=False)
@@ -98,96 +95,14 @@ def tap(card):
         print("Error:", res.status_code, res.text)
 
 
-def is_connected():
-    """Returns True if connected to Wi-Fi, otherwise False."""
-    try:
-        result = subprocess.run(
-            ["iwgetid"],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL
-        )
-        return result.stdout != b''
-    except:
-        return False
-
-def start_ap():
-    """Starts Access Point mode."""
-    print("Starting Access Point...")
-    subprocess.run(["sudo", "ifconfig", "wlan0", "down"])
-    subprocess.run(["sudo", "ifconfig", "wlan0", "192.168.4.1", "netmask", "255.255.255.0", "up"])
-    subprocess.run(["sudo", "systemctl", "start", "dnsmasq"])
-    subprocess.run(["sudo", "systemctl", "start", "hostapd"])
-
-def stop_ap():
-    """Stops Access Point mode and resets Wi-Fi."""
-    print("Stopping Access Point...")
-    subprocess.run(["sudo", "systemctl", "stop", "hostapd"])
-    subprocess.run(["sudo", "systemctl", "stop", "dnsmasq"])
-    subprocess.run(["sudo", "ifconfig", "wlan0", "down"])
-    subprocess.run(["sudo", "ifconfig", "wlan0", "up"])
-
-def is_wifi_connected():
-    try:
-        # Try to get IP of wlan0 interface
-        ip = subprocess.check_output("ip -4 addr show wlan0 | grep inet", shell=True).decode()
-        return "inet" in ip
-    except subprocess.CalledProcessError:
-        return False
 
 
-def start_access_point(ssid="TapAP", password="pass1234"):
-    print(f"Starting AP with SSID: {ssid}, Password: {password}")
 
-    # 1. Write hostapd config
-    hostapd_conf = f"""
-interface=wlan0
-driver=nl80211
-ssid={ssid}
-hw_mode=g
-channel=6
-auth_algs=1
-wmm_enabled=1
-wpa=2
-wpa_passphrase={password}
-wpa_key_mgmt=WPA-PSK
-rsn_pairwise=CCMP
-"""
-    with open("/tmp/hostapd.conf", "w") as f:
-        f.write(hostapd_conf)
 
-    # 2. Stop interfering services
-    subprocess.run("sudo systemctl stop wpa_supplicant.service", shell=True)
-    subprocess.run("sudo killall wpa_supplicant", shell=True)
-
-    # 3. Set static IP
-    subprocess.run("sudo ifconfig wlan0 192.168.4.1 netmask 255.255.255.0 up", shell=True)
-
-    # 4. Start dnsmasq for DHCP
-    dnsmasq_conf = """
-interface=wlan0
-dhcp-range=192.168.4.10,192.168.4.100,12h
-"""
-    with open("/tmp/dnsmasq.conf", "w") as f:
-        f.write(dnsmasq_conf)
-
-    subprocess.run("sudo dnsmasq -C /tmp/dnsmasq.conf", shell=True)
-
-    # 5. Start hostapd
-    subprocess.run("sudo hostapd -B /tmp/hostapd.conf", shell=True)
-
-    print("Access Point should now be active on 192.168.4.1")
-    spinner_animation(color="122122122", duration=3.0)
 
 
 def start():
-    if is_connected():
-        print("Connected to Wi-Fi, continuing in client mode.")
-        spinner_animation(color="000255000", duration=2.0)
-    else:
-        spinner_animation(color="255000000")
-        print("Not connected to Wi-Fi. Switching to AP mode.")
-        start_ap()
-        spinner_animation(color="000000255", duration=2.0, wait=0.08)
+    pass
 
 
 
