@@ -31,6 +31,7 @@ CONFIG = {
     'BATTERY_MAX_VOLTAGE': 4.1,
     'BATTERY_WARNING_VOLTAGE': 3.3,
     'PN532_RESET_PIN': board.D4,
+    'BUZZER_PIN': board.D4,
 }
 
 class DeviceController:
@@ -44,6 +45,9 @@ class DeviceController:
         
         # Now we can call LED methods
         self.off_led()  # Turn off LEDs initially
+        
+        self.buzzer = DigitalInOut(CONFIG['BUZZER_PIN'])
+        self.buzzer.switch_to_output(value=False)  
         
         # Show startup animation
         self.spinner_animation(color="000000255", duration=0.5)
@@ -198,7 +202,7 @@ class DeviceController:
     # NFC Methods
     def _init_nfc(self):
         """Initialize PN532 NFC reader"""
-        self.spinner_animation(color="255255000", duration=0.3)  # Yellow
+        self.spinner_animation(color="255255000", duration=0.1)  # Yellow
         
         reset_pin = DigitalInOut(CONFIG['PN532_RESET_PIN'])
         reset_pin.switch_to_output(value=False)
@@ -282,4 +286,4 @@ if __name__ == "__main__":
         logger.error(f"Fatal error: {str(e)}")
         if controller:
             controller.cleanup()
-        raise
+        raise-
