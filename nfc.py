@@ -46,7 +46,7 @@ class DeviceController:
         # Now we can call LED methods
         self.off_led()  # Turn off LEDs initially
         self.buzzer = DigitalInOut(CONFIG['BUZZER_PIN'])
-        self.buzzer.switch_to_output(value=False) 
+        self.buzzer.switch_to_output(value=True) 
         
         # Show startup animation
         self.spinner_animation(color="000000255", duration=0.5)
