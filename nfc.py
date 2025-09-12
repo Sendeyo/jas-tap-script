@@ -10,6 +10,7 @@ import requests
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 from requests.exceptions import RequestException
+import subprocess
 
 # Configure logging
 logging.basicConfig(
@@ -228,6 +229,57 @@ class DeviceController:
             self.control_led("255000000", 1000)
             raise
 
+    def _check_internet(self):
+        try:
+            requests.get("http://1.1.1.1", timeout=3)  # Fast & reliable
+            return True
+        except Exception:
+            return False
+
+
+    def _start_hotspot(self):
+        try:
+            subprocess.run(
+                ["nmcli", "connection", "up", "SENDPI-1"],
+                check=True
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+    taps = 0
+
+    def handle_card_button(self):
+        print(self.taps)
+        self.taps+=1
+        print(self.taps)
+        if self.taps == 0:
+            pass
+        elif self.taps == 1:
+            print("SHOW BATTERY")
+            voltage, percentage = self._read_battery()
+            if percentage < 5:
+                self._low_battery_warning()
+            if percentage is not None:
+                self._show_battery_level(percentage)
+        elif self.taps == 2:
+            # Check internet
+            if self._check_internet():
+                self.spinner_animation(color="000255000", duration=0.5)  # Green
+            else:
+                self.spinner_animation(color="255000000", duration=0.5)  # Red
+
+        elif self.taps == 3:
+            # Start hotspot
+            if self._start_hotspot():
+                self.spinner_animation(color="000000255", duration=1.0)  # Blue = hotspot on
+            else:
+                self.spinner_animation(color="255000000", duration=1.0)  # Red = error
+            self.taps = 0  # Reset menu cycle
+        else:
+            self.taps=0
+            self.spinner_animation(color="000000255", duration=0.5)
+
     def handle_card_tap(self, card_uid):
         """Handle NFC card tap event"""
         url = f"{CONFIG['SERVER_URL']}/tap"
@@ -246,8 +298,13 @@ class DeviceController:
             
             color_str = response_data.get("color", "000000000")
             duration_ms = response_data.get("duration", 1000)
-            
-            self.control_led(color_str, duration_ms)
+            card_type = response_data.get("card_type", "acess")
+
+            if card_type == "admin":
+                self.handle_card_button()
+            else:
+                self.control_led(color_str, duration_ms)
+                self.taps = 0
             
         except RequestException as e:
             logger.error(f"Server communication failed: {str(e)}")
