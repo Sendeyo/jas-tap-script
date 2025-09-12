@@ -31,7 +31,7 @@ CONFIG = {
     'BATTERY_MAX_VOLTAGE': 4.1,
     'BATTERY_WARNING_VOLTAGE': 3.3,
     'PN532_RESET_PIN': board.D4,
-    'BUZZER_PIN': board.D4,
+    'BUZZER_PIN': board.D17,
 }
 
 class DeviceController:
@@ -170,11 +170,11 @@ class DeviceController:
     def _low_battery_warning(self):
         """Visual low battery alert"""
         for _ in range(3):
-            self.pixels.fill((255, 50, 0))  # Orange
+            self.pixels.fill((25, 5, 0))  # Orange
             self.pixels.show()
-            time.sleep(0.5)
+            time.sleep(0.05)
             self.off_led()
-            time.sleep(0.5)
+            time.sleep(0.05)
 
     def _battery_monitor(self):
         """Background battery monitoring thread"""
