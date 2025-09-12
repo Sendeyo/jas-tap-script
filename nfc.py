@@ -26,7 +26,7 @@ CONFIG = {
     'SERVER_URL': 'http://127.0.0.1:8000',
     'DEVICE_NAME': 'Entrance',
     'REQUEST_TIMEOUT': 5,
-    'BATTERY_CHECK_INTERVAL': 10,
+    'BATTERY_CHECK_INTERVAL': 60,
     'ADC_GAIN': 1,
     'BATTERY_MIN_VOLTAGE': 3.0,
     'BATTERY_MAX_VOLTAGE': 4.1,
@@ -250,33 +250,33 @@ class DeviceController:
     taps = 0
 
     def handle_card_button(self):
-        print(self.taps)
         self.taps+=1
-        print(self.taps)
         if self.taps == 0:
-            pass
+            print("## Nothing to do 0")
         elif self.taps == 1:
-            print("SHOW BATTERY")
+            print("## CHECKING BATTERY 1")
             voltage, percentage = self._read_battery()
             if percentage < 5:
+                print("## LOW BATTERY")
                 self._low_battery_warning()
             if percentage is not None:
                 self._show_battery_level(percentage)
         elif self.taps == 2:
-            # Check internet
+            print("## CHECKING INTERNET 2")
             if self._check_internet():
                 self.spinner_animation(color="000255000", duration=0.5)  # Green
             else:
                 self.spinner_animation(color="255000000", duration=0.5)  # Red
 
         elif self.taps == 3:
-            # Start hotspot
+            print("## STARTING HOTSPOT 3")
             if self._start_hotspot():
                 self.spinner_animation(color="000000255", duration=1.0)  # Blue = hotspot on
             else:
                 self.spinner_animation(color="255000000", duration=1.0)  # Red = error
             self.taps = 0  # Reset menu cycle
         else:
+            print("## RESETTING")
             self.taps=0
             self.spinner_animation(color="000000255", duration=0.5)
 
