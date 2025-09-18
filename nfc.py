@@ -302,8 +302,19 @@ class DeviceController:
             self.taps=0
             self.spinner_animation(color="000000255", duration=0.5)
 
+    def beep(self, duration=0.1):
+        """Short beep on the buzzer"""
+        try:
+            self.buzzer.value = True   # Turn buzzer ON
+            time.sleep(duration)
+            self.buzzer.value = False  # Turn buzzer OFF
+        except Exception as e:
+            logger.error(f"Buzzer error: {str(e)}")
+
+
     def handle_card_tap(self, card_uid):
         """Handle NFC card tap event"""
+        self.beep()
         url = f"{CONFIG['SERVER_URL']}/tap"
         data = {"device": CONFIG['DEVICE_NAME'], "card": card_uid}
         
