@@ -247,7 +247,19 @@ class DeviceController:
         except subprocess.CalledProcessError:
             return False
 
+    def _stop_hotspot(self):
+        try:
+            subprocess.run(
+                ["nmcli", "connection", "down", "SENDPI-1"],
+                check=True
+            )
+            self.hotspot_on = False
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
     taps = 0
+    hotspot_on = False
 
     def handle_card_button(self):
         self.taps+=1
@@ -269,11 +281,21 @@ class DeviceController:
                 self.spinner_animation(color="255000000", duration=0.5)  # Red
 
         elif self.taps == 3:
-            print("## STARTING HOTSPOT 3")
-            if self._start_hotspot():
-                self.spinner_animation(color="000000255", duration=1.0)  # Blue = hotspot on
+            print("## TOGGLE HOTSPOT 3")
+            if not self.hotspot_on:
+                print("### STARTING AP")
+                self.hotspot_on = True
+                if self._start_hotspot():
+                    self.spinner_animation(color="000000255", duration=1.0)  # Blue = hotspot on
+                else:
+                    self.spinner_animation(color="255000000", duration=1.0)  # Red = error
             else:
-                self.spinner_animation(color="255000000", duration=1.0)  # Red = error
+                print("### STOPPING AP")
+                self.hotspot_on = False
+                if self._stop_hotspot():
+                    self.spinner_animation(color="255000055", duration=1.0)  # Blue = hotspot on
+                else:
+                    self.spinner_animation(color="000000255", duration=1.0)  # Red = error
             self.taps = 0  # Reset menu cycle
         else:
             print("## RESETTING")
