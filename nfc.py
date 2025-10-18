@@ -11,6 +11,8 @@ import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 from requests.exceptions import RequestException
 import subprocess
+import time
+import math
 
 # Configure logging
 logging.basicConfig(
@@ -90,12 +92,97 @@ class DeviceController:
         except (ValueError, IndexError):
             logger.error(f"Invalid color string: {color_str}")
             return (0, 0, 0)
+        
+
+
+    def wheel(self, pos):
+        """Generate rainbow colors across 0?255 positions."""
+        if pos < 85:
+            return (int(pos * 3), int(255 - pos * 3), 0)
+        elif pos < 170:
+            pos -= 85
+            return (int(255 - pos * 3), 0, int(pos * 3))
+        else:
+            pos -= 170
+            return (0, int(pos * 3), int(255 - pos * 3))
+
+    def rainbow_animation(self, duration_ms=2000):
+        """
+        Show a fast spinning rainbow across all LEDs for 'duration_ms' milliseconds.
+        1000 = 1 second.
+        """
+        num_pixels = len(self.pixels)
+        start_time = time.time()
+        duration_s = duration_ms / 1000.0
+
+        wait = 0.005  # fast but visible (smaller = faster)
+
+        while (time.time() - start_time) < duration_s:
+            for j in range(0, 255, 8):  # step of 8 = visible rotation speed
+                for i in range(num_pixels):
+                    color = self.wheel((int(i * 256 / num_pixels) + j) & 255)
+                    self.pixels[i] = color
+                self.pixels.show()
+                time.sleep(wait)
+                if (time.time() - start_time) > duration_s:
+                    break
+
+        # Fade out gracefully
+        for b in range(255, -1, -20):
+            for i in range(num_pixels):
+                r, g, bl = self.pixels[i]
+                self.pixels[i] = (int(r * b / 255), int(g * b / 255), int(bl * b / 255))
+            self.pixels.show()
+            time.sleep(0.01)
+
+        self.pixels.fill((0, 0, 0))
+        self.pixels.show()
+
+
+
+        
+    def split_animation(self, color, duration):
+        num_pixels = len(self.pixels)
+        color_rgb = self.parse_color(color)
+        delay = (duration / 1000) / (num_pixels // 2)
+
+        # Start full
+        self.pixels.fill(color_rgb)
+        self.pixels.show()
+        time.sleep(0.2)
+
+        half = num_pixels // 2  # 12
+        steps = half - 1        # we exclude 0 and 12 (the verticals)
+
+        for i in range(steps // 2 + 1):
+            # right side (clockwise from top)
+            right_index = 1 + i
+            # left side (counterclockwise from top)
+            left_index = (num_pixels - 1) - i
+
+            # also their mirrored counterparts on the bottom half
+            right_mirror = (half + right_index) % num_pixels
+            left_mirror = (half + left_index) % num_pixels
+
+            for idx in [right_index, left_index, right_mirror, left_mirror]:
+                self.pixels[idx] = (0, 0, 0)
+
+            self.pixels.show()
+            time.sleep(delay)
+
+        # Finally, turn off 0 and 12
+        self.pixels[0] = (0, 0, 0)
+        self.pixels[half] = (0, 0, 0)
+        self.pixels.show()
+
+
+
     
-    def spinner_animation(self, duration=1.0, wait=0.01, color="000000255"):
+    def spinner_animation(self, duration=1000, wait=0.01, color="000000255"):
         """Show a spinner animation."""
         start_time = time.time()
         color_rgb = self.parse_color(color)
-        while (time.time() - start_time) < duration:
+        while (time.time() - start_time) < (duration/1000):
             for i in range(CONFIG['LED_COUNT']):
                 self.pixels.fill((0, 0, 0))
                 self.pixels[i] = color_rgb
@@ -106,11 +193,22 @@ class DeviceController:
     def control_led(self, color_str, duration_ms):
         """Control LED with specified color and duration."""
         color = self.parse_color(color_str)
-        duration = duration_ms / 1000.0
+        duration = duration_ms / 1000
         self.pixels.fill(color)
         self.pixels.show()
         time.sleep(duration)
         self.off_led()
+
+    def play_animation(self, animation_type="solid", color="000000255", duration=1000):
+        if animation_type == "solid":
+            self.control_led(color, duration)
+        elif animation_type == "spin":
+            self.spinner_animation(duration=duration, color=color)
+        elif animation_type == "split":
+            self.split_animation(color, duration)
+        else:
+            self.rainbow_animation(duration)
+
 
     def _show_battery_level(self, percentage):
         """Visual indication of battery level"""
@@ -332,11 +430,15 @@ class DeviceController:
             color_str = response_data.get("color", "000000000")
             duration_ms = response_data.get("duration", 1000)
             card_type = response_data.get("card_type", "acess")
+            animation = response_data.get("animation", "rainbow")
 
-            if card_type == "admin":
+            if card_type.upper() == "ADMIN":
                 self.handle_card_button()
             else:
-                self.control_led(color_str, duration_ms)
+                print(animation)
+                print(str(color_str))
+                print(int(duration_ms))
+                self.play_animation(animation, str(color_str), int(duration_ms))
                 self.taps = 0
             
         except RequestException as e:
