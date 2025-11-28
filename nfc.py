@@ -41,6 +41,9 @@ CONFIG = {
 class DeviceController:
     def __init__(self):
         self.brightness = 100   # default full brightness
+        self.tapSound = True
+        self.statusSound = False
+        self.soundDuration = 10
 
         # Initialize LED hardware first
         self.pixels = neopixel.NeoPixel(
@@ -413,6 +416,7 @@ class DeviceController:
 
     def beep(self, duration=0.1):
         """Short beep on the buzzer"""
+
         try:
             self.buzzer.value = True   # Turn buzzer ON
             time.sleep(duration)
@@ -423,7 +427,9 @@ class DeviceController:
 
     def handle_card_tap(self, card_uid):
         """Handle NFC card tap event"""
-        self.beep()
+        if self.tapSound:
+            self.beep()
+
         url = f"{CONFIG['SERVER_URL']}/tap"
         data = {"device": CONFIG['DEVICE_NAME'], "card": card_uid}
         
@@ -443,6 +449,11 @@ class DeviceController:
             card_type = response_data.get("card_type", "acess")
             animation = response_data.get("animation", "rainbow")
             brightness = response_data.get("brightness", 100)
+
+            self.tapSound = response_data.get("tapSound", 100)
+            self.statusSound = response_data.get("statusSound", 100)
+            self.soundDuration = response_data.get("soundDuration", 100)
+
             
             if brightness > 100:
                 brightness = 100
@@ -459,6 +470,8 @@ class DeviceController:
                 print(int(duration_ms))
                 self.play_animation(animation, str(color_str), int(duration_ms))
                 self.taps = 0
+                if self.statusSound:
+                    self.beep(duration=self.soundDuration)
             
         except RequestException as e:
             logger.error(f"Server communication failed: {str(e)}")
