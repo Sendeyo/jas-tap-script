@@ -14,6 +14,7 @@ import subprocess
 import time
 import math
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -63,7 +64,7 @@ class DeviceController:
         logger.info(f"Initial battery: {voltage:.2f}V ({percentage}%)")
         self._show_battery_level(percentage)
         
-        # Initialize NFC
+        # Initialize NFC Procurement structures.
         self._init_nfc()
         
         # Start battery monitoring thread
@@ -72,7 +73,7 @@ class DeviceController:
         self.battery_thread.daemon = True
         self.battery_thread.start()
 
-        # System ready
+        # System readya
         self.spinner_animation(color="000255000", duration=0.5)
         logger.info("System initialized")
 
