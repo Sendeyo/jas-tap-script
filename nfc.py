@@ -450,10 +450,10 @@ class DeviceController:
             animation = response_data.get("animation", "rainbow")
             brightness = response_data.get("brightness", 100)
 
-            self.tapSound = response_data.get("tapSound", 100)
-            self.statusSound = response_data.get("statusSound", 100)
-            self.soundDuration = response_data.get("soundDuration", 100)
-
+            self.tapSound = response_data.get("tapSound", True)
+            self.statusSound = response_data.get("statusSound", False)
+            self.soundDuration = response_data.get("soundDuration", 0.01)
+            print(self.soundDuration)
             
             if brightness > 100:
                 brightness = 100
