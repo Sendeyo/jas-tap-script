@@ -40,6 +40,8 @@ CONFIG = {
 
 class DeviceController:
     def __init__(self):
+        self.brightness = 100   # default full brightness
+
         # Initialize LED hardware first
         self.pixels = neopixel.NeoPixel(
             CONFIG['LED_PIN'],
@@ -77,6 +79,13 @@ class DeviceController:
         self.spinner_animation(color="000255000", duration=0.5)
         logger.info("System initialized")
 
+    def apply_brightness(self, color):
+        """Scale an RGB color by the current brightness (0–100)."""
+        scale = self.brightness / 100.0
+        r, g, b = color
+        return (int(r * scale), int(g * scale), int(b * scale))
+
+
     # LED Control Methods (defined first)
     def off_led(self):
         """Turn off all LEDs."""
@@ -84,15 +93,16 @@ class DeviceController:
         self.pixels.show()
         
     def parse_color(self, color_str):
-        """Parse color string into RGB tuple."""
+        """Parse color string and apply brightness."""
         try:
             red = int(color_str[:3])
             green = int(color_str[3:6])
             blue = int(color_str[6:])
-            return (red, green, blue)
+            return self.apply_brightness((red, green, blue))
         except (ValueError, IndexError):
             logger.error(f"Invalid color string: {color_str}")
             return (0, 0, 0)
+
         
 
 
@@ -122,7 +132,7 @@ class DeviceController:
             for j in range(0, 255, 8):  # step of 8 = visible rotation speed
                 for i in range(num_pixels):
                     color = self.wheel((int(i * 256 / num_pixels) + j) & 255)
-                    self.pixels[i] = color
+                    self.pixels[i] = self.apply_brightness(color)
                 self.pixels.show()
                 time.sleep(wait)
                 if (time.time() - start_time) > duration_s:
@@ -132,7 +142,7 @@ class DeviceController:
         for b in range(255, -1, -20):
             for i in range(num_pixels):
                 r, g, bl = self.pixels[i]
-                self.pixels[i] = (int(r * b / 255), int(g * b / 255), int(bl * b / 255))
+                self.pixels[i] = self.apply_brightness((int(r * b / 255), int(g * b / 255), int(bl * b / 255)))
             self.pixels.show()
             time.sleep(0.01)
 
@@ -148,7 +158,7 @@ class DeviceController:
         delay = (duration / 1000) / (num_pixels // 2)
 
         # Start full
-        self.pixels.fill(color_rgb)
+        self.pixels.fill(self.apply_brightness(color_rgb))
         self.pixels.show()
         time.sleep(0.2)
 
@@ -166,7 +176,7 @@ class DeviceController:
             left_mirror = (half + left_index) % num_pixels
 
             for idx in [right_index, left_index, right_mirror, left_mirror]:
-                self.pixels[idx] = (0, 0, 0)
+                self.pixels[idx] = self.apply_brightness((0, 0, 0))
 
             self.pixels.show()
             time.sleep(delay)
@@ -186,7 +196,7 @@ class DeviceController:
         while (time.time() - start_time) < (duration/1000):
             for i in range(CONFIG['LED_COUNT']):
                 self.pixels.fill((0, 0, 0))
-                self.pixels[i] = color_rgb
+                self.pixels[i] = self.apply_brightness(color_rgb)
                 self.pixels.show()
                 time.sleep(wait)
         self.off_led()
@@ -195,7 +205,7 @@ class DeviceController:
         """Control LED with specified color and duration."""
         color = self.parse_color(color_str)
         duration = duration_ms / 1000
-        self.pixels.fill(color)
+        self.pixels.fill(self.apply_brightness(color))
         self.pixels.show()
         time.sleep(duration)
         self.off_led()
@@ -223,7 +233,7 @@ class DeviceController:
         lit_leds = int(CONFIG['LED_COUNT'] * percentage / 100)
         self.pixels.fill((0, 0, 0))
         for i in range(lit_leds):
-            self.pixels[i] = color
+            self.pixels[i] = self.apply_brightness(color)
         self.pixels.show()
         time.sleep(2)
         self.off_led()
@@ -432,6 +442,14 @@ class DeviceController:
             duration_ms = response_data.get("duration", 1000)
             card_type = response_data.get("card_type", "acess")
             animation = response_data.get("animation", "rainbow")
+            brightness = response_data.get("brightness", 100)
+            
+            if brightness > 100:
+                brightness = 100
+            elif brightness < 0:
+                brightness = 0
+            self.brightness = brightness
+
 
             if card_type.upper() == "ADMIN":
                 self.handle_card_button()
