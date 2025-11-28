@@ -454,6 +454,8 @@ class DeviceController:
             self.statusSound = response_data.get("statusSound", False)
             self.soundDuration = response_data.get("soundDuration", 0.01)
             print(self.soundDuration)
+            print(self.tapSound)
+            print(self.statusSound)
             
             if brightness > 100:
                 brightness = 100
